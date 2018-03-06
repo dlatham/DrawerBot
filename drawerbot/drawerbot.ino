@@ -1,0 +1,191 @@
+#define version 0.1
+/*
+ * DrawerBot 0.1
+ * Arduino code to operate a mechanical shelf that lets you store things away in places too hard to reach.
+ * By Dave Latham
+ */
+#include <SPI.h>
+#include <Adafruit_NeoPixel.h>
+#include <Adafruit_VS1053.h>
+#include <SD.h>
+
+
+//PIN DEFINITIONS
+#define requestPin 2          //Pin to monitor for requests
+#define motorDirA 4
+#define motorDirB 5
+#define drawerRelay 6
+#define liftRelay 7
+#define drawerLimitIn 8
+#define drawerLimitOut 9
+#define liftLimit 10
+#define ledData 11
+#define SHIELD_RESET  -1     // VS1053 reset pin (unused!)
+#define SHIELD_CS     7      // VS1053 chip select pin (output)
+#define SHIELD_DCS    6      // VS1053 Data/command select pin (output)
+#define CARDCS 4             // Card chip select pin
+// DREQ should be an Int pin, see http://arduino.cc/en/Reference/attachInterrupt
+#define DREQ 3               // VS1053 Data request, ideally an Interrupt pin
+
+//SAFETY TIMEOUTS
+#define drawerTimeout 10000   //Time in milliseconds before drawer motion times out
+#define liftTimeout 10000     //Time in milliseconds before the lift motion times out
+
+//MOTION DIRECTION CONFIGURATION
+#define drawerMotorA LOW      //Set the output of direction relay A for the drawer in forward
+#define liftMotorA HIGH       //Set the output of direction relay A for the lift in down
+
+
+ 
+void setup() {
+  //PINMODES
+  pinMode(requestPin, INPUT_PULLUP);
+  pinMode(motorDirA, OUTPUT);
+  digitalWrite(motorDirA, HIGH);
+  pinMode(motorDirB, OUTPUT);
+  digitalWrite(motorDirB, HIGH);
+  pinMode(drawerRelay, OUTPUT);
+  digitalWrite(drawerRelay, HIGH);
+  pinMode(liftRelay, OUTPUT);
+  digitalWrite(liftRelay, HIGH);
+  pinMode(drawerLimitIn, INPUT_PULLUP);
+  pinMode(liftLimit, INPUT_PULLUP);
+
+  //ADAFRUIT HARDWARE SETUP
+  Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
+  Adafruit_VS1053_FilePlayer musicPlayer = 
+  // create breakout-example object!
+  //Adafruit_VS1053_FilePlayer(BREAKOUT_RESET, BREAKOUT_CS, BREAKOUT_DCS, DREQ, CARDCS);
+  // create shield-example object!
+  Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
+
+  //SERIAL MONITOR SETUP
+  Serial.begin(9600);
+  Serial.print("SelfBot version ");
+  Serial.println(version);
+  Serial.println("--------------------------");
+  
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+
+}
+
+
+//>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MOTION FUNCTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+bool drawerOut(){
+  //Check status
+  if(isDrawerOut()){
+    Serial.print("DRAWER: Drawer already out, returning true.");
+    return true;
+  }
+  //Set motion
+  if(!setDirection("drawer", "forward")){
+    Serial.println("DRAWER: Error, set direction failed.");
+    return false;
+  }
+  if(!isLiftUp()){
+    Serial.print("DRAWER: Motion canceled because the lift isn't up.");
+    return false;
+  }
+  Serial.print("DRAWER: Opening... ");
+  unsigned long current = millis();
+  while(drawerLimitOut == HIGH){
+    digitalWrite(drawerRelay, LOW);
+    if((millis() - current) >= drawerTimeout){
+      digitalWrite(drawerRelay, HIGH);
+      Serial.print("Failed. Drawer timed out.");
+      return false;
+    }
+  }
+  digitalWrite(drawerRelay, HIGH);
+  Serial.print("OK (Completed in ");
+  Serial.print(millis()-current);
+  Serial.println("ms)");
+  return true;
+}
+
+bool drawerIn(){
+
+}
+
+bool liftDown(){
+
+}
+
+bool liftUp(){
+
+}
+
+bool setDirection(char type, char dir){
+  Serial.print("SETDIRECTION: ");
+  if(type == "drawer" && dir == "forward"){           //DRAWER FORWARD
+    digitalWrite(motorDirA, drawerMotorA);
+    digitalWrite(motorDirB, !drawerMotorA);
+    Serial.print("Drawer : Relay A ");
+    Serial.print(drawerMotorA);
+    Serial.print(", Relay B ");
+    Serial.println(!drawerMotorA);
+    return true;
+  } else if(type == "drawer" && dir == "reverse"){    //DRAWER REVERSE
+    digitalWrite(motorDirA, !drawerMotorA);
+    digitalWrite(motorDirB, drawerMotorA);
+    Serial.print("Drawer : Relay A ");
+    Serial.print(!drawerMotorA);
+    Serial.print(", Relay B ");
+    Serial.println(drawerMotorA);
+    return true;
+  } else if(type == "lift" && dir == "forward"){      //LIFT FORWARD
+    digitalWrite(motorDirA, liftMotorA);
+    digitalWrite(motorDirB, !liftMotorA);
+    Serial.print("Lift : Relay A ");
+    Serial.print(liftMotorA);
+    Serial.print(", Relay B ");
+    Serial.println(!liftMotorA);
+    return true;
+  } else if(type == "lift" && dir == "reverse"){      //LIFT REVERSE
+    digitalWrite(motorDirA, !liftMotorA);
+    digitalWrite(motorDirB, liftMotorA);
+    Serial.print("Lift : Relay A ");
+    Serial.print(!liftMotorA);
+    Serial.print(", Relay B ");
+    Serial.println(liftMotorA);
+    return true;
+  } else {
+    Serial.println("SETDIRECTION: Error, incorrect type or direction provided.");
+    return false;
+  }
+}
+
+//!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! STATUS FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+bool isDrawerIn(){
+  if(drawerLimitIn == LOW){
+    Serial.println("DRAWER: Status IN : TRUE");
+    return true;
+  } else {
+    Serial.println("DRAWER: Status IN : FALSE");
+    return false;
+  }
+}
+
+bool isDrawerOut(){
+  if(drawerLimitOut == LOW){
+    Serial.println("DRAWER: Status OUT : TRUE");
+    return true;
+  } else {
+    Serial.println("DRAWER: Status OUT : FALSE");
+    return false;
+  }
+}
+
+bool isLiftUp(){
+  if(liftLimit == LOW){
+    Serial.println("LIFT: Status UP : TRUE");
+    return true;
+  } else {
+    Serial.println("LIFT: Status UP : FALSE");
+    return false;
+  }
+}
+

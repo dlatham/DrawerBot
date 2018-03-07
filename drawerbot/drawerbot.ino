@@ -29,7 +29,7 @@
 
 //SAFETY TIMEOUTS
 #define drawerTimeout 10000   //Time in milliseconds before drawer motion times out
-#define liftTimeout 10000     //Time in milliseconds before the lift motion times out
+#define lowerTime 15000       //Time in milliseconds that the lift will lower when requested (no lower limit)
 
 //MOTION DIRECTION CONFIGURATION
 #define drawerMotorA LOW      //Set the output of direction relay A for the drawer in forward
@@ -63,13 +63,26 @@ void setup() {
   Serial.begin(9600);
   Serial.print("SelfBot version ");
   Serial.println(version);
-  Serial.println("--------------------------");
-  
+  printStatus();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-
+  if(Serial.available() > 0){
+    uint8_t incomingByte = Serial.read();
+    switch(incomingByte){
+      case 111: {
+        drawerOut();
+        liftDown();
+      }
+      break;
+      case 99: {
+        liftUp();
+        drawerIn();
+      }
+      break;
+    }
+  }
+  delay(500); //make sure there's no weirdness on the Serial.available()
 }
 
 
@@ -85,6 +98,7 @@ bool drawerOut(){
     Serial.println("DRAWER: Error, set direction failed.");
     return false;
   }
+  //Confirm the lift is up
   if(!isLiftUp()){
     Serial.print("DRAWER: Motion canceled because the lift isn't up.");
     return false;
@@ -187,5 +201,30 @@ bool isLiftUp(){
     Serial.println("LIFT: Status UP : FALSE");
     return false;
   }
+}
+
+void printStatus(){
+  Serial.println("\r\r--------------------------");
+  Serial.println("STATUS:\rRequest\tMotorDirA\tMotorDirB\tDrawer\tLift");
+  Serial.print(requestPin, digitalRead(requestPin));
+  Serial.print("\t");
+  Serial.print(motorDirA, digitalRead(motorDirA));
+  Serial.print("\t");
+  Serial.print(motorDirB, digitalRead(motorDirB));
+  Serial.print("\t");
+  Serial.print(drawerRelay, digitalRead(drawerRelay));
+  Serial.print("\t");
+  Serial.print(liftRelay, digitalRead(liftRelay));
+  Serial.println("\r\rLimit In\tLimit Out\tLimit Up\tDrawer Timeout\tLift Time");
+  Serial.print(drawerLimitIn, digitalRead(drawerLimitIn));
+  Serial.print("\t");
+  Serial.print(drawerLimitOut, digitalRead(drawerLimitOut));
+  Serial.print("\t");
+  Serial.print(liftLimit, digitalRead(liftLimit));
+  Serial.print("\t");
+  Serial.print(drawerTimeout/1000);
+  Serial.print("sec\t");
+  Serial.println(lowerTime/1000);
+  Serial.println("---------------------------------\r[O]pen, [C]lose, [D]rawer, [L]ift\rREADY.");
 }
 

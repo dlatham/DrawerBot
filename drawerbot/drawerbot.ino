@@ -121,7 +121,35 @@ bool drawerOut(){
 }
 
 bool drawerIn(){
-
+  //Check to see if the drawer is already in
+  if(isDrawerIn()){
+    Serial.print("DRAWER: Drawer already out, returning true.");
+    return true;
+  }
+  if(!isLiftUp()){
+    Serial.print("DRAWER: Motion canceled because the lift isn't up.");
+    return false;
+  }
+  //Set motion
+  if(!setDirection("drawer", "reverse")){
+    Serial.println("DRAWER: Error, set direction failed.");
+    return false;
+  }
+  Serial.print("DRAWER: Closing... ");
+  unsigned long current = millis();
+  while(drawerLimitIn == HIGH){
+    digitalWrite(drawerRelay, LOW);
+    if((millis() - current) >= drawerTimeout){
+      digitalWrite(drawerRelay, HIGH);
+      Serial.print("Failed. Drawer timed out.");
+      return false;
+    }
+  }
+  digitalWrite(drawerRelay, HIGH);
+  Serial.print("OK (Completed in ");
+  Serial.print(millis()-current);
+  Serial.println("ms)");
+  return true;
 }
 
 bool liftDown(){

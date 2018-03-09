@@ -71,13 +71,11 @@ void loop() {
     uint8_t incomingByte = Serial.read();
     switch(incomingByte){
       case 111: {
-        drawerOut();
-        liftDown();
+        if(drawerOut()){liftDown();}
       }
       break;
       case 99: {
-        liftUp();
-        drawerIn();
+        if(liftUp()){drawerIn();}
       }
       break;
     }
@@ -87,7 +85,7 @@ void loop() {
 
 
 //>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> MOTION FUNCTIONS >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-bool drawerOut(){
+bool drawerOut(){                                                           //Drawer out
   //Check status
   if(isDrawerOut()){
     Serial.print("DRAWER: Drawer already out, returning true.");
@@ -120,7 +118,7 @@ bool drawerOut(){
   return true;
 }
 
-bool drawerIn(){
+bool drawerIn(){                                                            //Drawer in
   //Check to see if the drawer is already in
   if(isDrawerIn()){
     Serial.print("DRAWER: Drawer already out, returning true.");
@@ -152,12 +150,65 @@ bool drawerIn(){
   return true;
 }
 
-bool liftDown(){
-
+bool liftDown(){                                                                //Lift Down
+  //Check to see if the drawer is out
+  if(!isDrawerOut()){
+    Serial.println("LIFT: Motion canceled because drawer isn't out.");
+    return false;
+  }
+  //Check to see if the lift is up
+  if(!isLiftUp()){
+    Serial.println("LIFT: Motion canceled because lift isn't up - can't ensure proper lower time.");
+    return false;
+  }
+  //Set motion
+  if(!setDirection("lift", "forward")){
+    Serial.println("LIFT: Error, set direction failed.");
+    return false;
+  }
+  Serial.print("LIFT: Lowering... ");
+  unsigned long current = millis();
+  while((millis()-current) < lowerTime){
+    digitalWrite(liftRelay, LOW);
+  }
+  digitalWrite(liftRelay, HIGH);
+  Serial.print("OK (Completed in ");
+  Serial.print(millis()-current);
+  Serial.println("ms)");
+  return true;
 }
 
-bool liftUp(){
-
+bool liftUp(){                                                                        //Lift Up
+  //Check to see if the lift is up already
+  if(!isLiftUp()){
+    Serial.println("LIFT: Motion canceled because the lift is already up.");
+    return false;
+  }
+  //Check to see if the drawer is out
+  if(!isDrawerOut()){
+    Serial.print("LIFT: Motion canceled because the drawer isn't out.");
+    return false;
+  }
+  //Set motion
+  if(!setDirection("lift", "reverse")){
+    Serial.println("LIFT: Error, set direction failed.");
+    return false;
+  }
+  Serial.print("LIFT: Raising... ");
+  unsigned long current = millis();
+  while(liftLimit == HIGH){
+    digitalWrite(liftRelay, LOW);
+    if((millis() - current) >= (lowerTime + 1000)){
+      digitalWrite(liftRelay, HIGH);
+      Serial.print("Failed. Lift timed out.");
+      return false;
+    }
+  }
+  digitalWrite(liftRelay, HIGH);
+  Serial.print("OK (Completed in ");
+  Serial.print(millis()-current);
+  Serial.println("ms)");
+  return true;
 }
 
 bool setDirection(char type, char dir){
@@ -255,4 +306,3 @@ void printStatus(){
   Serial.println(lowerTime/1000);
   Serial.println("---------------------------------\r[O]pen, [C]lose, [D]rawer, [L]ift\rREADY.");
 }
-

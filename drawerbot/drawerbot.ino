@@ -44,8 +44,8 @@
 #define forward 2
 #define reverse 3
 unsigned long current;
-
-
+Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
+Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
  
 void setup() {
   //PINMODES
@@ -63,15 +63,26 @@ void setup() {
   pinMode(liftLimit, INPUT_PULLUP);
 
   //ADAFRUIT HARDWARE SETUP
-  Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
   leds.begin();
   leds.show();
-  Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
 
   //SERIAL MONITOR SETUP
   Serial.begin(9600);
   Serial.print("SelfBot version ");
   Serial.println(version);
+
+  //SETUP THE SOUND PLAYER
+  if (! musicPlayer.begin()) { // initialise the music player
+     Serial.println(F("Couldn't find VS1053, do you have the right pins defined?"));
+     while (1);
+  }
+  Serial.println(F("VS1053 found"));
+  musicPlayer.setVolume(10,10);
+  if (!SD.begin(CARDCS)) {
+    Serial.println(F("SD failed, or not present"));
+    while (1);  // don't do anything more
+  }
+  SD.open("/");
   printStatus();
 }
 
@@ -80,12 +91,12 @@ void loop() {
     uint8_t incomingByte = Serial.read();
     switch(incomingByte){
       case 111: {
-        if(drawerOut()){liftDown();}
+        if(drawerOut()){if(liftDown()){musicPlayer.playFullFile("end.mp3");}}
         printStatus();
       }
       break;
       case 99: {
-        if(liftUp()){drawerIn();}
+        if(liftUp()){if(drawerIn()){musicPlayer.playFullFile("end.mp3");}}
         printStatus();
       }
       break;
@@ -113,6 +124,7 @@ bool drawerOut(){                                                           //Dr
     return false;
   }
   Serial.print(F("DRAWER: Opening... "));
+  musicPlayer.playFullFile("start.mp3");
   current = millis();
   while(digitalRead(drawerLimitOut) == HIGH){
     digitalWrite(drawerRelay, LOW);
@@ -145,6 +157,7 @@ bool drawerIn(){                                                            //Dr
     return false;
   }
   Serial.print(F("DRAWER: Closing... "));
+  musicPlayer.playFullFile("next.mp3");
   current = millis();
   while(digitalRead(drawerLimitIn) == HIGH){
     digitalWrite(drawerRelay, LOW);
@@ -178,6 +191,7 @@ bool liftDown(){                                                                
     return false;
   }
   Serial.print(F("LIFT: Lowering... "));
+  musicPlayer.playFullFile("next.mp3");
   current = millis();
   while((millis()-current) < lowerTime){
     digitalWrite(liftRelay, LOW);
@@ -206,6 +220,7 @@ bool liftUp(){                                                                  
     return false;
   }
   Serial.print(F("LIFT: Raising... "));
+  musicPlayer.playFullFile("start.mp3");
   current = millis();
   while(digitalRead(liftLimit) == HIGH){
     digitalWrite(liftRelay, LOW);
@@ -335,6 +350,7 @@ void printStatus(){
 
 
 void ledRun(){
+  //Rotate the LEDs in a loading circle given the current millis of the action
   
 }
 

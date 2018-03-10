@@ -150,12 +150,12 @@ bool drawerIn(){                                                            //Dr
     digitalWrite(drawerRelay, LOW);
     if((millis() - current) >= drawerTimeout){
       digitalWrite(drawerRelay, HIGH);
-      Serial.print("Failed. Drawer timed out.");
+      Serial.print(F("Failed. Drawer timed out."));
       return false;
     }
   }
   digitalWrite(drawerRelay, HIGH);
-  Serial.print("OK (Completed in ");
+  Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
   return true;
@@ -164,26 +164,26 @@ bool drawerIn(){                                                            //Dr
 bool liftDown(){                                                                //Lift Down
   //Check to see if the drawer is out
   if(!isDrawerOut()){
-    Serial.println("LIFT: Motion canceled because drawer isn't out.");
+    Serial.println(F("LIFT: Motion canceled because drawer isn't out."));
     return false;
   }
   //Check to see if the lift is up
   if(!isLiftUp()){
-    Serial.println("LIFT: Motion canceled because lift isn't up - can't ensure proper lower time.");
+    Serial.println(F("LIFT: Motion canceled because lift isn't up - can't ensure proper lower time."));
     return false;
   }
   //Set motion
   if(!setDirection(lift, forward)){
-    Serial.println("LIFT: Error, set direction failed.");
+    Serial.println(F("LIFT: Error, set direction failed."));
     return false;
   }
-  Serial.print("LIFT: Lowering... ");
+  Serial.print(F("LIFT: Lowering... "));
   current = millis();
   while((millis()-current) < lowerTime){
     digitalWrite(liftRelay, LOW);
   }
   digitalWrite(liftRelay, HIGH);
-  Serial.print("OK (Completed in ");
+  Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
   return true;
@@ -192,31 +192,31 @@ bool liftDown(){                                                                
 bool liftUp(){                                                                        //Lift Up
   //Check to see if the lift is up already
   if(isLiftUp()){
-    Serial.println("LIFT: Motion canceled because the lift is already up.");
+    Serial.println(F("LIFT: Motion canceled because the lift is already up."));
     return false;
   }
   //Check to see if the drawer is out
   if(!isDrawerOut()){
-    Serial.print("LIFT: Motion canceled because the drawer isn't out.");
+    Serial.print(F("LIFT: Motion canceled because the drawer isn't out."));
     return false;
   }
   //Set motion
   if(!setDirection(lift, reverse)){
-    Serial.println("LIFT: Error, set direction failed.");
+    Serial.println(F("LIFT: Error, set direction failed."));
     return false;
   }
-  Serial.print("LIFT: Raising... ");
+  Serial.print(F("LIFT: Raising... "));
   current = millis();
   while(digitalRead(liftLimit) == HIGH){
     digitalWrite(liftRelay, LOW);
     if((millis() - current) >= (lowerTime + 1000)){
       digitalWrite(liftRelay, HIGH);
-      Serial.print("Failed. Lift timed out.");
+      Serial.print(F("Failed. Lift timed out."));
       return false;
     }
   }
   digitalWrite(liftRelay, HIGH);
-  Serial.print("OK (Completed in ");
+  Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
   return true;
@@ -227,37 +227,37 @@ bool setDirection(uint8_t type, uint8_t dir){
   if(type == 0 && dir == 2){           //DRAWER FORWARD
     digitalWrite(motorDirA, drawerMotorA);
     digitalWrite(motorDirB, !drawerMotorA);
-    Serial.print("Drawer : Relay A ");
+    Serial.print(F("Drawer : Relay A "));
     Serial.print(drawerMotorA);
-    Serial.print(", Relay B ");
+    Serial.print(F(", Relay B "));
     Serial.println(!drawerMotorA);
     return true;
   } else if(type == 0 && dir == 3){    //DRAWER REVERSE
     digitalWrite(motorDirA, !drawerMotorA);
     digitalWrite(motorDirB, drawerMotorA);
-    Serial.print("Drawer : Relay A ");
+    Serial.print(F("Drawer : Relay A "));
     Serial.print(!drawerMotorA);
-    Serial.print(", Relay B ");
+    Serial.print(F(", Relay B "));
     Serial.println(drawerMotorA);
     return true;
   } else if(type == 1 && dir == 2){      //LIFT FORWARD
     digitalWrite(motorDirA, liftMotorA);
     digitalWrite(motorDirB, !liftMotorA);
-    Serial.print("Lift : Relay A ");
+    Serial.print(F("Lift : Relay A "));
     Serial.print(liftMotorA);
-    Serial.print(", Relay B ");
+    Serial.print(F(", Relay B "));
     Serial.println(!liftMotorA);
     return true;
   } else if(type == 1 && dir == 3){      //LIFT REVERSE
     digitalWrite(motorDirA, !liftMotorA);
     digitalWrite(motorDirB, liftMotorA);
-    Serial.print("Lift : Relay A ");
+    Serial.print(F("Lift : Relay A "));
     Serial.print(!liftMotorA);
-    Serial.print(", Relay B ");
+    Serial.print(F(", Relay B "));
     Serial.println(liftMotorA);
     return true;
   } else {
-    Serial.println("SETDIRECTION: Error, incorrect type or direction provided.");
+    Serial.println(F("SETDIRECTION: Error, incorrect type or direction provided."));
     return false;
   }
 }
@@ -265,37 +265,37 @@ bool setDirection(uint8_t type, uint8_t dir){
 //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! STATUS FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 bool isDrawerIn(){
   if(digitalRead(drawerLimitIn) == 0){
-    Serial.println("DRAWER: Status IN : TRUE");
+    Serial.println(F("DRAWER: Status IN : TRUE"));
     return true;
   } else {
-    Serial.println("DRAWER: Status IN : FALSE");
+    Serial.println(F("DRAWER: Status IN : FALSE"));
     return false;
   }
 }
 
 bool isDrawerOut(){
   if(digitalRead(drawerLimitOut) == LOW){
-    Serial.println("DRAWER: Status OUT : TRUE");
+    Serial.println(F("DRAWER: Status OUT : TRUE"));
     return true;
   } else {
-    Serial.println("DRAWER: Status OUT : FALSE");
+    Serial.println(F("DRAWER: Status OUT : FALSE"));
     return false;
   }
 }
 
 bool isLiftUp(){
   if(digitalRead(liftLimit) == LOW){
-    Serial.println("LIFT: Status UP : TRUE");
+    Serial.println(F("LIFT: Status UP : TRUE"));
     return true;
   } else {
-    Serial.println("LIFT: Status UP : FALSE");
+    Serial.println(F("LIFT: Status UP : FALSE"));
     return false;
   }
 }
 
 void printStatus(){
   Serial.println("\n\n--------------------------");
-  Serial.println("STATUS:\nRequest\tMotorDirA\tMotorDirB\tDrawer\tLift");
+  Serial.println(F("STATUS:\nRequest\tMotorDirA\tMotorDirB\tDrawer\tLift"));
   Serial.print(requestPin, digitalRead(requestPin));
   Serial.print("\t");
   Serial.print(motorDirA);
@@ -313,7 +313,7 @@ void printStatus(){
   Serial.print(liftRelay);
   Serial.print("-");
   Serial.print(digitalRead(liftRelay));
-  Serial.println("\n\nLimit In\tLimit Out\tLimit Up\tDrawer Timeout\tLift Time");
+  Serial.println(F("\n\nLimit In\tLimit Out\tLimit Up\tDrawer Timeout\tLift Time"));
   Serial.print(drawerLimitIn);
   Serial.print("-");
   Serial.print(digitalRead(drawerLimitIn));
@@ -330,7 +330,7 @@ void printStatus(){
   Serial.print("sec\t\t");
   Serial.print(lowerTime/1000);
   Serial.println("sec");
-  Serial.println("---------------------------------\n[O]pen, [C]lose, [D]rawer, [L]ift\nREADY.");
+  Serial.println(F("---------------------------------\n[O]pen, [C]lose, [D]rawer, [L]ift\nREADY."));
 }
 
 

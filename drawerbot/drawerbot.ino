@@ -11,15 +11,20 @@
 
 
 //PIN DEFINITIONS
-#define requestPin 2          //Pin to monitor for requests
-#define motorDirA 4
-#define motorDirB 5
-#define drawerRelay 6
-#define liftRelay 7
-#define drawerLimitIn 8
-#define drawerLimitOut 9
-#define liftLimit 10
-#define ledData 11
+#define requestPin 2          //Pin to monitor for requests - interrupt
+#define motorDirA 8
+#define motorDirB 9
+#define drawerRelay 10
+#define liftRelay 11
+#define ledData 12
+#define drawerLimitIn A0
+#define drawerLimitOut A1
+#define liftLimit A2
+//#define CLK 13       // SPI Clock, shared with SD card
+//#define MISO 12      // Input data, from VS1053/SD card
+//#define MOSI 11      // Output data, to VS1053/SD card
+// Connect CLK, MISO and MOSI to hardware SPI pins. 
+// See http://arduino.cc/en/Reference/SPI "Connections"
 #define SHIELD_RESET  -1     // VS1053 reset pin (unused!)
 #define SHIELD_CS     7      // VS1053 chip select pin (output)
 #define SHIELD_DCS    6      // VS1053 Data/command select pin (output)
@@ -53,11 +58,9 @@ void setup() {
 
   //ADAFRUIT HARDWARE SETUP
   Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
-  Adafruit_VS1053_FilePlayer musicPlayer = 
-  // create breakout-example object!
-  //Adafruit_VS1053_FilePlayer(BREAKOUT_RESET, BREAKOUT_CS, BREAKOUT_DCS, DREQ, CARDCS);
-  // create shield-example object!
-  Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
+  leds.begin();
+  leds.show();
+  Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
 
   //SERIAL MONITOR SETUP
   Serial.begin(9600);
@@ -306,3 +309,16 @@ void printStatus(){
   Serial.println(lowerTime/1000);
   Serial.println("---------------------------------\r[O]pen, [C]lose, [D]rawer, [L]ift\rREADY.");
 }
+
+
+void ledRun(){
+  
+}
+
+void ledError(){
+  
+}
+void ledRest(){
+  
+}
+

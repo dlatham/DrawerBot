@@ -9,7 +9,6 @@
 #include <Adafruit_VS1053.h>
 #include <SD.h>
 
-
 //PIN DEFINITIONS
 #define requestPin 2          //Pin to monitor for requests - interrupt
 #define motorDirA A0
@@ -33,6 +32,7 @@
 //SAFETY TIMEOUTS
 #define drawerTimeout 23500   //Time in milliseconds before drawer motion times out
 #define lowerTime 15000       //Time in milliseconds that the lift will lower when requested (no lower limit)
+#define liftTimeout 20500     //Time in milliseconds before lift up motion times out
 #define ledSpeed 100          //Time in milliseconds that the LEDs will pause while rotating
 
 //MOTION DIRECTION CONFIGURATION
@@ -233,7 +233,7 @@ bool liftUp(){                                                                  
   current = millis();
   while(digitalRead(liftLimit) == HIGH){
     digitalWrite(liftRelay, LOW);
-    if((millis() - current) >= (lowerTime + 1000)){
+    if((millis() - current) >= liftTimeout){
       digitalWrite(liftRelay, HIGH);
       Serial.print(F("Failed. Lift timed out."));
       return false;
@@ -373,8 +373,6 @@ void ledRun(uint8_t t){
     }
   }
   leds.show();
-  //Serial.print(F("LED: Printing to LED #"));
-  //Serial.println(currentLED);
 }
 
 void ledError(){
@@ -409,10 +407,6 @@ void ledSuccess(){
     leds.show();
     delay(10);
   }
-}
-
-void ledRest(){
-  
 }
 
 

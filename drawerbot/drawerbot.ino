@@ -16,15 +16,13 @@
 #define motorDirB A1
 #define drawerRelay A2
 #define liftRelay A3
-#define ledData 12
+#define ledData 5
 #define drawerLimitIn 8
 #define drawerLimitOut 9
 #define liftLimit 10
 //#define CLK 13       // SPI Clock, shared with SD card
 //#define MISO 12      // Input data, from VS1053/SD card
 //#define MOSI 11      // Output data, to VS1053/SD card
-// Connect CLK, MISO and MOSI to hardware SPI pins. 
-// See http://arduino.cc/en/Reference/SPI "Connections"
 #define SHIELD_RESET  -1     // VS1053 reset pin (unused!)
 #define SHIELD_CS     7      // VS1053 chip select pin (output)
 #define SHIELD_DCS    6      // VS1053 Data/command select pin (output)
@@ -33,8 +31,9 @@
 #define DREQ 3               // VS1053 Data request, ideally an Interrupt pin
 
 //SAFETY TIMEOUTS
-#define drawerTimeout 10000   //Time in milliseconds before drawer motion times out
+#define drawerTimeout 23500   //Time in milliseconds before drawer motion times out
 #define lowerTime 15000       //Time in milliseconds that the lift will lower when requested (no lower limit)
+#define ledSpeed 100          //Time in milliseconds that the LEDs will pause while rotating
 
 //MOTION DIRECTION CONFIGURATION
 #define drawerMotorA LOW      //Set the output of direction relay A for the drawer in forward
@@ -43,7 +42,10 @@
 #define lift 1
 #define forward 2
 #define reverse 3
-unsigned long current;
+
+unsigned long current;        //Current used for millis timeout functions
+uint8_t currentLED = 0;       //Used for led animations
+uint8_t previousLED = 0;
 Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
 Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
  
@@ -91,12 +93,12 @@ void loop() {
     uint8_t incomingByte = Serial.read();
     switch(incomingByte){
       case 111: {
-        if(drawerOut()){if(liftDown()){musicPlayer.playFullFile("end.mp3");}}
+        if(drawerOut()){if(liftDown()){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
         printStatus();
       }
       break;
       case 99: {
-        if(liftUp()){if(drawerIn()){musicPlayer.playFullFile("end.mp3");}}
+        if(liftUp()){if(drawerIn()){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
         printStatus();
       }
       break;
@@ -133,11 +135,14 @@ bool drawerOut(){                                                           //Dr
       Serial.print(F("Failed. Drawer timed out."));
       return false;
     }
+    ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(drawerRelay, HIGH);
   Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
+  previousLED = 0;
+  delay(1000);
   return true;
 }
 
@@ -166,11 +171,13 @@ bool drawerIn(){                                                            //Dr
       Serial.print(F("Failed. Drawer timed out."));
       return false;
     }
+    ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(drawerRelay, HIGH);
   Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
+  previousLED = 0;
   return true;
 }
 
@@ -195,19 +202,21 @@ bool liftDown(){                                                                
   current = millis();
   while((millis()-current) < lowerTime){
     digitalWrite(liftRelay, LOW);
+    ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(liftRelay, HIGH);
   Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
+  previousLED = 0;
   return true;
 }
 
 bool liftUp(){                                                                        //Lift Up
   //Check to see if the lift is up already
   if(isLiftUp()){
-    Serial.println(F("LIFT: Motion canceled because the lift is already up."));
-    return false;
+    Serial.println(F("LIFT: Lift is already up, returning true."));
+    return true;
   }
   //Check to see if the drawer is out
   if(!isDrawerOut()){
@@ -229,11 +238,14 @@ bool liftUp(){                                                                  
       Serial.print(F("Failed. Lift timed out."));
       return false;
     }
+    ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(liftRelay, HIGH);
   Serial.print(F("OK (Completed in "));
   Serial.print(millis()-current);
   Serial.println("ms)");
+  previousLED = 0;
+  delay(1000);
   return true;
 }
 
@@ -349,15 +361,59 @@ void printStatus(){
 }
 
 
-void ledRun(){
-  //Rotate the LEDs in a loading circle given the current millis of the action
-  
+void ledRun(uint8_t t){
+  //Rotate the LEDs in a loading circle given an led #t - 16 LED display
+  if(t>previousLED){currentLED++; previousLED = t;}
+  if(currentLED==16){currentLED = 0;}
+  for(uint8_t i=0; i<= leds.numPixels(); i++){
+    if(i==currentLED){
+      leds.setPixelColor(i,0,0,255);
+    } else {
+      leds.setPixelColor(i,0);
+    }
+  }
+  leds.show();
+  //Serial.print(F("LED: Printing to LED #"));
+  //Serial.println(currentLED);
 }
 
 void ledError(){
-  
+  for(uint8_t i=0; i<=127; i++){
+    for(uint8_t j=0; j<= leds.numPixels(); j++){
+      leds.setPixelColor(j,i,0,0);
+    }
+    leds.show();
+    delay(10);
+  }
+  for(int i=127; i>=0; i--){
+    for(uint8_t j=0; j<= leds.numPixels(); j++){
+      leds.setPixelColor(j,i,0,0);
+    }
+    leds.show();
+    delay(10);
+  }
 }
+
+void ledSuccess(){
+  for(uint8_t i=0; i<=127; i++){
+    for(uint8_t j=0; j<= leds.numPixels(); j++){
+      leds.setPixelColor(j,0,i,0);
+    }
+    leds.show();
+    delay(10);
+  }
+  for(int i=127; i>=0; i--){
+    for(uint8_t j=0; j<= leds.numPixels(); j++){
+      leds.setPixelColor(j,0,i,0);
+    }
+    leds.show();
+    delay(10);
+  }
+}
+
 void ledRest(){
   
 }
+
+
 

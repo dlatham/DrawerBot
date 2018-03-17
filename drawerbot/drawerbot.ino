@@ -46,12 +46,15 @@
 unsigned long current;        //Current used for millis timeout functions
 uint8_t currentLED = 0;       //Used for led animations
 uint8_t previousLED = 0;
+uint8_t requestState = 1;     //Default the current request state to 1 (or HIGH) meaning the drawer is up/in
+uint16_t elapsed = 0;         //Store remaining lift down time in case state changes occurs during movement
 Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
 Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
  
 void setup() {
   //PINMODES
   pinMode(requestPin, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(requestPin), request, CHANGE);
   pinMode(motorDirA, OUTPUT);
   digitalWrite(motorDirA, HIGH);
   pinMode(motorDirB, OUTPUT);
@@ -93,7 +96,7 @@ void loop() {
     uint8_t incomingByte = Serial.read();
     switch(incomingByte){
       case 111: {
-        if(drawerOut()){if(liftDown()){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
+        if(drawerOut()){if(liftDown(0)){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
         printStatus();
       }
       break;
@@ -135,6 +138,12 @@ bool drawerOut(){                                                           //Dr
       Serial.print(F("Failed. Drawer timed out."));
       return false;
     }
+    if(requestState == 1){ //Request state change while opening
+      digitalWrite(drawerRelay, HIGH);
+      musicPlayer.playFullFile("error.mp3");
+      drawerIn();
+      return false;
+    }
     ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(drawerRelay, HIGH);
@@ -171,6 +180,12 @@ bool drawerIn(){                                                            //Dr
       Serial.print(F("Failed. Drawer timed out."));
       return false;
     }
+    if(requestState == 0){ //Request state change while closing
+      digitalWrite(drawerRelay, HIGH);
+      musicPlayer.playFullFile("error.mp3");
+      if(drawerOut()){liftDown(0);}
+      return false;
+    }
     ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(drawerRelay, HIGH);
@@ -181,14 +196,14 @@ bool drawerIn(){                                                            //Dr
   return true;
 }
 
-bool liftDown(){                                                                //Lift Down
+bool liftDown(uint16_t t){                                                                //Lift Down
   //Check to see if the drawer is out
   if(!isDrawerOut()){
     Serial.println(F("LIFT: Motion canceled because drawer isn't out."));
     return false;
   }
   //Check to see if the lift is up
-  if(!isLiftUp()){
+  if(!isLiftUp() && t==0){
     Serial.println(F("LIFT: Motion canceled because lift isn't up - can't ensure proper lower time."));
     return false;
   }
@@ -200,7 +215,13 @@ bool liftDown(){                                                                
   Serial.print(F("LIFT: Lowering... "));
   musicPlayer.playFullFile("next.mp3");
   current = millis();
-  while((millis()-current) < lowerTime){
+  while((millis()-current) < (lowerTime - elapsed)){
+    if(requestState == 1){ //Request state change while lowering
+      digitalWrite(liftRelay, HIGH);
+      musicPlayer.playFullFile("error.mp3");
+      if(liftUp()){ drawerIn(); }
+      return false;
+    }
     digitalWrite(liftRelay, LOW);
     ledRun((millis()-current)/ledSpeed);
   }
@@ -238,6 +259,13 @@ bool liftUp(){                                                                  
       Serial.print(F("Failed. Lift timed out."));
       return false;
     }
+    if(requestState == 0){ //Request change during motion up
+      digitalWrite(liftRelay, HIGH);
+      elapsed = lowerTime - ((millis()-current)*(lowerTime/liftTimeout)); //Get remaining time with speed handicap (faster down then up)
+      musicPlayer.playFullFile("error.mp3");
+      liftDown(elapsed);
+      return false;
+    }
     ledRun((millis()-current)/ledSpeed);
   }
   digitalWrite(liftRelay, HIGH);
@@ -245,6 +273,7 @@ bool liftUp(){                                                                  
   Serial.print(millis()-current);
   Serial.println("ms)");
   previousLED = 0;
+  elapsed = 0;
   delay(1000);
   return true;
 }
@@ -408,6 +437,22 @@ void ledSuccess(){
     delay(10);
   }
 }
+
+//::::::::::::::::::::::::::::::::REQUEST HANDLING:::::::::::::::::::>
+void request(){
+  if(digitalRead(requestPin)==0){
+    //Lower request
+    requestState = 0;
+    Serial.println(F("REQUEST: Drawer open received."));
+  } else {
+    //Raise request
+    requestState = 1;
+    Serial.println(F("Request: Drawer closed received."));
+  }
+}
+
+
+
 
 
 

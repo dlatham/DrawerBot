@@ -47,6 +47,7 @@ unsigned long current;        //Current used for millis timeout functions
 uint8_t currentLED = 0;       //Used for led animations
 uint8_t previousLED = 0;
 uint8_t requestState = 1;     //Default the current request state to 1 (or HIGH) meaning the drawer is up/in
+uint8_t oldState = 1;
 uint16_t elapsed = 0;         //Store remaining lift down time in case state changes occurs during movement
 Adafruit_VS1053_FilePlayer musicPlayer = Adafruit_VS1053_FilePlayer(SHIELD_RESET, SHIELD_CS, SHIELD_DCS, DREQ, CARDCS);
 Adafruit_NeoPixel leds = Adafruit_NeoPixel(16, ledData, NEO_GRB + NEO_KHZ800);
@@ -92,6 +93,17 @@ void setup() {
 }
 
 void loop() {
+  if(oldState != requestState){
+    if(requestState == 1){
+      if(liftUp()){if(drawerIn()){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
+      oldState = 1;
+      printStatus();
+    } else if(requestState == 0){
+      if(drawerOut()){if(liftDown(0)){musicPlayer.playFullFile("end.mp3"); ledSuccess();} else {musicPlayer.playFullFile("error.mp3"); ledError();}} else {musicPlayer.playFullFile("error.mp3"); ledError();}
+      oldState = 0;
+      printStatus();
+    }
+  }
   if(Serial.available() > 0){
     uint8_t incomingByte = Serial.read();
     switch(incomingByte){
@@ -440,6 +452,7 @@ void ledSuccess(){
 
 //::::::::::::::::::::::::::::::::REQUEST HANDLING:::::::::::::::::::>
 void request(){
+  delay(1000);
   if(digitalRead(requestPin)==0){
     //Lower request
     requestState = 0;
@@ -447,7 +460,7 @@ void request(){
   } else {
     //Raise request
     requestState = 1;
-    Serial.println(F("Request: Drawer closed received."));
+    Serial.println(F("REQUEST: Drawer closed received."));
   }
 }
 
